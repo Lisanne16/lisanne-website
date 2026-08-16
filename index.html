@@ -79,21 +79,27 @@
   .route-line .path{ color: var(--text); }
   .route-line .role{ color: var(--amber); }
 
-  .tabs{
-    display:flex; gap:8px; flex-wrap:wrap;
-    max-width:860px; margin:0 auto; padding: 12px 24px 16px 24px;
+  .role-picker-wrap{
+    max-width:860px; margin:0 auto; padding: 10px 24px 16px 24px;
+    display:flex; align-items:center; gap:9px;
   }
-  .tab{
-    font-family: var(--mono); font-size:12px; letter-spacing:0.01em;
-    padding:7px 12px; border:1px solid var(--border); border-radius: var(--radius);
-    background: var(--panel-2); color: var(--text-dim);
-    cursor:pointer; transition: all .15s ease;
-    display:flex; align-items:center; gap:7px;
+  .role-picker-wrap.hidden{ display:none; }
+  .role-label{
+    font-family: var(--mono); font-size:11px; color: var(--text-faint);
+    text-transform:uppercase; letter-spacing:0.06em;
   }
-  .tab:hover{ border-color:#2c3e50; color:var(--text); }
-  .tab .swatch{ width:6px; height:6px; border-radius:50%; background:var(--text-faint); }
-  .tab.active{ background: var(--teal-dim); border-color: rgba(45,212,191,0.4); color: var(--teal); }
-  .tab.active .swatch{ background: var(--teal); box-shadow:0 0 6px var(--teal); }
+  .role-select{
+    font-family: var(--mono); font-size:12px; color: var(--teal);
+    background: var(--panel-2); border:1px solid var(--border); border-radius: var(--radius);
+    padding:6px 10px; cursor:pointer; appearance:none; -webkit-appearance:none;
+    background-image: linear-gradient(45deg, transparent 50%, var(--text-faint) 50%), linear-gradient(135deg, var(--text-faint) 50%, transparent 50%);
+    background-position: calc(100% - 14px) center, calc(100% - 9px) center;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat:no-repeat;
+    padding-right:28px;
+  }
+  .role-select:focus{ outline:1px solid var(--teal); }
+  .role-select option{ background: var(--panel); color: var(--text); }
 
   /* ---------- Hero ---------- */
   .hero{ padding: 40px 0 28px 0; border-bottom:1px solid var(--border-soft); }
@@ -102,6 +108,10 @@
     font-size: clamp(32px, 6vw, 46px);
     letter-spacing:-0.01em;
     color: var(--text);
+  }
+  .tagline{
+    margin-top:12px; font-family: var(--sans); font-size:16px; font-weight:600;
+    color: var(--text); max-width: 56ch; line-height:1.5;
   }
   .headline{
     margin-top:10px; font-family: var(--mono); font-size:13px;
@@ -213,6 +223,20 @@
   .ach-text .ach-title{ font-weight:700; font-size:13.5px; color:var(--text); }
   .ach-text .ach-desc{ font-size:12.5px; color:var(--text-dim); margin-top:2px; }
 
+  /* Hobbies */
+  .hobby-grid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap:12px; }
+  .hobby-card{
+    background: var(--panel); border:1px solid var(--border-soft); border-radius: var(--radius);
+    padding:14px; display:flex; flex-direction:column; gap:4px;
+  }
+  .hobby-emoji{ font-size:20px; line-height:1; }
+  .hobby-name{ font-weight:700; font-size:13.5px; color: var(--text); }
+  .hobby-note{ font-size:12px; color: var(--text-dim); }
+  .hobby-edit-hint{
+    font-family: var(--mono); font-size:11.5px; color: var(--text-faint);
+    border:1px dashed var(--border); border-radius: var(--radius); padding:10px 12px;
+  }
+
   /* Footer */
   footer{ padding: 34px 0 60px 0; }
   .foot-grid{ display:flex; justify-content:space-between; flex-wrap:wrap; gap:20px; }
@@ -251,10 +275,10 @@
     </div>
   </div>
 
-  <div class="route-line">
-    <span class="verb">GET</span> <span class="path">/resume?role=</span><span class="role" id="routeRole">cloud-ai</span>
+  <div class="role-picker-wrap" id="rolePickerWrap">
+    <span class="role-label">Tailored for</span>
+    <select class="role-select" id="roleSelect"></select>
   </div>
-  <div class="tabs" id="tabs"></div>
 
   <div class="wrap">
     <div id="app"></div>
@@ -434,30 +458,46 @@ const STATIC = {
   contact: {
     email: "lisanne1610@gmail.com",
     phone: "+353 89 203 0886",
-    location: "Dublin, Ireland"
-  }
+    location: "Dublin, Ireland",
+    linkedin: "https://www.linkedin.com/in/lisanne-dlima-b00970217/"
+  },
+  // One line, first person. This is what makes the site sound like you, not a resume.
+  // e.g. "I like systems that don't page anyone at 3am, and AI that earns its keep."
+  tagline: "Making data behave and cloud problems disappear ☁️",
+  // EDIT ME: swap in your real hobbies/interests. Keep 3–6, one short phrase each.
+  hobbies: [
+    { emoji: "⚽", name: "Football", note: "Always up to play or watch a good match." },
+    { emoji: "🏋️‍♀️", name: "Gym", note: "My second favourite place." },
+    { emoji: "🧁", name: "Baking", note: "Happiest when there’s something in the oven." },
+    { emoji: "💃", name: "Dancing", note: "Usually found dancing to something." }    
+  ]
 };
 
-let current = "cloud-ai";
+// Which tracks the switcher offers, in display order.
+const ROLE_ORDER = ["cloud-ai", "solutions-engineer", "technical-manager", "data-scientist"];
 
-function renderTabs(){
-  const tabs = document.getElementById('tabs');
-  tabs.innerHTML = Object.keys(TRACKS).map(key => {
-    const t = TRACKS[key];
-    return `<button class="tab ${key===current?'active':''}" data-key="${key}">
-      <span class="swatch"></span>${t.label}
-    </button>`;
-  }).join('');
-  tabs.querySelectorAll('.tab').forEach(btn=>{
-    btn.addEventListener('click', ()=> setTrack(btn.dataset.key));
-  });
+// A specific link (?role=cloud-ai) opens straight into that version with the
+// picker hidden — so a shared link reads like a normal personal site, not a tool.
+const params = new URLSearchParams(location.search);
+const roleParam = params.get('role');
+const isPinned = roleParam && TRACKS[roleParam];
+
+let current = isPinned ? roleParam : "cloud-ai";
+
+function renderPicker(){
+  const wrap = document.getElementById('rolePickerWrap');
+  if (isPinned){ wrap.classList.add('hidden'); return; }
+  const select = document.getElementById('roleSelect');
+  select.innerHTML = ROLE_ORDER.map(key =>
+    `<option value="${key}" ${key===current?'selected':''}>${TRACKS[key].label}</option>`
+  ).join('');
+  select.onchange = (e) => setTrack(e.target.value);
 }
 
 function setTrack(key){
   current = key;
-  document.getElementById('routeRole').textContent = key;
   document.getElementById('latency').textContent = (Math.floor(Math.random()*18)+6) + 'ms';
-  renderTabs();
+  renderPicker();
   render();
 }
 
@@ -503,6 +543,14 @@ function render(){
     </div>
   `).join('');
 
+  const hobbyHtml = STATIC.hobbies.map(h => `
+    <div class="hobby-card">
+      <span class="hobby-emoji">${h.emoji}</span>
+      <span class="hobby-name">${h.name}</span>
+      <span class="hobby-note">${h.note}</span>
+    </div>
+  `).join('');
+
   const achHtml = STATIC.achievements.map(a => `
     <div class="ach-item">
       <span class="ach-badge">${a.badge}</span>
@@ -517,6 +565,7 @@ function render(){
     <div class="fade">
       <div class="hero">
         <div class="name">Lisanne Dlima</div>
+        <div class="tagline">${STATIC.tagline}</div>
         <div class="headline">${t.headline}</div>
         <div class="contact-row">
           <span>${STATIC.contact.location}</span>
@@ -590,10 +639,18 @@ function render(){
         ${achHtml}
       </section>
 
+      <section>
+        <div class="sec-head"><span class="sec-tag">08</span><span class="sec-title">Outside work</span><span class="sec-line"></span></div>
+        <div class="hobby-grid">${hobbyHtml}</div>
+        <p class="hobby-edit-hint" style="margin-top:12px;">
+          Placeholder content — search this file for "EDIT ME" (tagline near the top of STATIC, hobbies list right below it) and swap in your own.
+        </p>
+      </section>
+
       <footer>
         <div class="foot-grid">
           <div class="foot-note">
-            lisanne.dev · resume auto-tailors per role · currently viewing <span style="color:var(--teal)">${t.label}</span>
+            Thanks for reading this far. Say hi — <a href="mailto:${STATIC.contact.email}" style="color:var(--teal)">${STATIC.contact.email}</a>
           </div>
           <div class="lang-row">
             ${STATIC.languages.map(l=>`<span class="tag">${l}</span>`).join('')}
@@ -612,7 +669,7 @@ function render(){
   });
 }
 
-renderTabs();
+renderPicker();
 render();
 </script>
 </body>
